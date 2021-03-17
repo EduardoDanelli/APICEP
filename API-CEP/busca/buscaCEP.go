@@ -94,4 +94,6 @@ func BuscaCEPABERTO(c *gin.Context) {
 
 	sb := string(body)
 	log.Printf(sb)
+	
+	c.JSON(http.StatusOK, cidadeinfo)
 }
