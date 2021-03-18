@@ -1,99 +1,59 @@
 package busca
 
 import (
+	"cep/busca/models"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin" // gin
 )
 
-type Cidade struct {
-	CEP         string `json:"cep"`
-	Logradouro  string `json:"logradouro"`
-	Complemento string `json:"complemento"`
-	Bairro      string `json:"bairro"`
-	Localidade  string `json:"localidade"`
-	UF          string `json:"uf"`
-	IBGE        string `json:"ibge"`
-	GIA         string `json:"gia"`
-	DDD         string `json:"ddd"`
-	SIAFI       string `json:"siafi"`
-}
-
 func BuscaCEP(c *gin.Context) {
 
 	cep := c.Query("cep")
+	cep = strings.ReplaceAll(cep, "-", "")
+	cep = strings.ReplaceAll(cep, ".", "")
 
-	if len(cep) < 8 {
-		c.JSON(http.StatusOK, gin.H{"error": "CEP inválido, faltam números"})
+	// Verificando se o CEP é valido.
+	if len(cep) != 8 {
+		c.JSON(400, gin.H{"error": "CEP inválido"})
 		return
 	}
 
 	resp, err := http.Get("https://viacep.com.br/ws/" + cep + "/json")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao conectar com o ViaCEP"})
+		c.JSON(http.StatusOK, gin.H{"error": "Erro ao conectar com o ViaCEP"})
+		return
+	}
+
+	if resp.StatusCode != 200 {
+		c.JSON(http.StatusOK, gin.H{"error": "Erro ao conectar com ViaCEP"})
 		return
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao ler resposta"})
 		return
 	}
+
 	defer resp.Body.Close()
 	fmt.Printf("%s\n", data)
 
-	var cidadeinfo Cidade
+	var cidadeinfo models.Cidade
 	if err := json.Unmarshal([]byte(data), &cidadeinfo); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao conectar com ViaCEP"})
 		return
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	/*if cidadeinfo.Erro {
+		c.JSON(http.StatusOK, gin.H{"error": "CEP não encontrado"})
 		return
-	}
-
-	sb := string(body)
-	log.Printf(sb)
+	}*/
 
 	c.JSON(http.StatusOK, cidadeinfo)
-}
-
-func BuscaCEPABERTO(c *gin.Context) {
-
-	resp, err := http.Get("https://cepaberto.com/ws/" + cep + "/json")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao conectar com CEPABERTO"})
-		return
-	}
-
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	defer resp.Body.Close()
-	fmt.Printf("%s\n", data)
-
-	var cidadeinfo Cidade
-	if err := json.Unmarshal([]byte(data), &cidadeinfo); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	sb := string(body)
-	log.Printf(sb)
-	
-	c.JSON(http.StatusOK, cidadeinfo)
+	fmt.Print(cep)
 }
